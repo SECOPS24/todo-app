@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Todo App — FUSE</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f13;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 48px 16px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 520px;
+      background: #1a1a24;
+      border: 1px solid #2d2d3d;
+      border-radius: 16px;
+      padding: 32px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 0.8rem;
+      color: #6366f1;
+      font-weight: 500;
+      margin-bottom: 28px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .add-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: #0f0f13;
+      border: 1px solid #2d2d3d;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus { border-color: #6366f1; }
+    input[type="text"]::placeholder { color: #4a4a60; }
+
+    button.add-btn {
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    button.add-btn:hover { background: #4f46e5; }
+
+    .filters {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .filters button {
+      background: none;
+      border: 1px solid #2d2d3d;
+      border-radius: 6px;
+      color: #94a3b8;
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filters button.active, .filters button:hover {
+      border-color: #6366f1;
+      color: #818cf8;
+      background: #1e1e30;
+    }
+
+    .todo-list { list-style: none; }
+
+    .todo-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #1e1e2e;
+      animation: slideIn 0.15s ease;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+    .todo-item:last-child { border-bottom: none; }
+
+    .todo-item input[type="checkbox"] {
+      width: 18px; height: 18px;
+      accent-color: #6366f1;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .todo-text {
+      flex: 1;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      transition: color 0.15s;
+    }
+    .todo-text.done {
+      color: #4a4a60;
+      text-decoration: line-through;
+    }
+
+    .del-btn {
+      background: none;
+      border: none;
+      color: #4a4a60;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.15s;
+      flex-shrink: 0;
+    }
+    .del-btn:hover { color: #ef4444; }
+
+    .empty {
+      text-align: center;
+      color: #4a4a60;
+      padding: 32px 0;
+      font-size: 0.9rem;
+    }
+
+    .stats {
+      margin-top: 20px;
+      font-size: 0.8rem;
+      color: #4a4a60;
+      display: flex;
+      justify-content: space-between;
+    }
+    .stats span { color: #818cf8; }
+
+    .clear-btn {
+      background: none;
+      border: none;
+      color: #4a4a60;
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.15s;
+    }
+    .clear-btn:hover { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>✅ Todo</h1>
+    <div class="subtitle">Deployed via FUSE</div>
+
+    <div class="add-row">
+      <input id="new-todo" type="text" placeholder="What needs doing?" autocomplete="off" />
+      <button class="add-btn" onclick="addTodo()">Add</button>
+    </div>
+
+    <div class="filters">
+      <button id="f-all" class="active" onclick="setFilter('all')">All</button>
+      <button id="f-active" onclick="setFilter('active')">Active</button>
+      <button id="f-done" onclick="setFilter('done')">Done</button>
+    </div>
+
+    <ul class="todo-list" id="todo-list"></ul>
+
+    <div class="stats">
+      <div><span id="remaining">0</span> remaining</div>
+      <button class="clear-btn" onclick="clearDone()">Clear completed</button>
+    </div>
+  </div>
+
+  <script>
+    let todos = [];
+    let filter = 'all';
+
+    async function load() {
+      const r = await fetch('/api/todos');
+      todos = await r.json();
+      render();
+    }
+
+    async function addTodo() {
+      const inp = document.getElementById('new-todo');
+      const text = inp.value.trim();
+      if (!text) return;
+      const r = await fetch('/api/todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      const todo = await r.json();
+      todos.push(todo);
+      inp.value = '';
+      render();
+    }
+
+    async function toggle(id) {
+      const todo = todos.find(t => t.id === id);
+      const r = await fetch(`/api/todos/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: !todo.done })
+      });
+      const updated = await r.json();
+      todos = todos.map(t => t.id === id ? updated : t);
+      render();
+    }
+
+    async function deleteTodo(id) {
+      await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+      todos = todos.filter(t => t.id !== id);
+      render();
+    }
+
+    async function clearDone() {
+      const done = todos.filter(t => t.done);
+      await Promise.all(done.map(t => fetch(`/api/todos/${t.id}`, { method: 'DELETE' })));
+      todos = todos.filter(t => !t.done);
+      render();
+    }
+
+    function setFilter(f) {
+      filter = f;
+      ['all','active','done'].forEach(x => {
+        document.getElementById(`f-${x}`).className = x === f ? 'active' : '';
+      });
+      render();
+    }
+
+    function render() {
+      const visible = todos.filter(t => {
+        if (filter === 'active') return !t.done;
+        if (filter === 'done') return t.done;
+        return true;
+      });
+      const list = document.getElementById('todo-list');
+      if (visible.length === 0) {
+        list.innerHTML = `<li class="empty">Nothing here yet.</li>`;
+      } else {
+        list.innerHTML = visible.map(t => `
+          <li class="todo-item">
+            <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggle(${t.id})" />
+            <span class="todo-text ${t.done ? 'done' : ''}">${escape(t.text)}</span>
+            <button class="del-btn" onclick="deleteTodo(${t.id})" title="Delete">✕</button>
+          </li>
+        `).join('');
+      }
+      const remaining = todos.filter(t => !t.done).length;
+      document.getElementById('remaining').textContent = remaining;
+    }
+
+    function escape(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    document.getElementById('new-todo').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addTodo();
+    });
+
+    load();
+  </script>
+</body>
+</html>
